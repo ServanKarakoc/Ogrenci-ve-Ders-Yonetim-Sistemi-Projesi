@@ -1,0 +1,173 @@
+using Newtonsoft.Json;
+using System;
+using System.Collections.Generic;
+using System.IO;
+
+// Temel sınıf (Base Class)
+public abstract class Kisi
+{
+    public string Ad { get; set; }
+    public string Soyad { get; set; }
+    public string TcNo { get; set; }
+
+    public Kisi(string ad, string soyad, string tcNo)
+    {
+        Ad = ad;
+        Soyad = soyad;
+        TcNo = tcNo;
+    }
+
+    public abstract void BilgiGoster();
+}
+
+// Interface tanımlaması
+public interface ILogin
+{
+    bool GirisYap(string tcNo);
+}
+
+// Öğrenci sınıfı
+public class Ogrenci : Kisi, ILogin
+{
+    public int OgrenciNo { get; set; }
+    public List<Ders> KayıtlıDersler { get; set; }
+
+    public Ogrenci(string ad, string soyad, string tcNo, int ogrenciNo)
+        : base(ad, soyad, tcNo)
+    {
+        OgrenciNo = ogrenciNo;
+        KayıtlıDersler = new List<Ders>();
+    }
+
+    public bool GirisYap(string tcNo)
+    {
+        // TC No ile giriş doğrulama işlemi
+        return TcNo == tcNo;
+    }
+
+    public override void BilgiGoster()
+    {
+        Console.WriteLine($"Öğrenci: {Ad} {Soyad} ({OgrenciNo})");
+    }
+}
+
+// Öğretim Görevlisi sınıfı
+public class OgretimGorevlisi : Kisi, ILogin
+{
+    public string Unvan { get; set; }
+    public List<Ders> VerilenDersler { get; set; }
+
+    public OgretimGorevlisi(string ad, string soyad, string tcNo, string unvan)
+        : base(ad, soyad, tcNo)
+    {
+        Unvan = unvan;
+        VerilenDersler = new List<Ders>();
+    }
+
+    public bool GirisYap(string tcNo)
+    {
+        // TC No ile giriş doğrulama işlemi
+        return TcNo == tcNo;
+    }
+
+    public override void BilgiGoster()
+    {
+        Console.WriteLine($"Öğretim Görevlisi: {Ad} {Soyad} - {Unvan}");
+    }
+}
+
+// Ders sınıfı
+public class Ders
+{
+    public string Ad { get; set; }
+    public int Kredi { get; set; }
+    public OgretimGorevlisi OgretimGorevlisi { get; set; }
+    public List<Ogrenci> KayitliOgrenciler { get; set; }
+
+    public Ders(string ad, int kredi, OgretimGorevlisi ogretimGorevlisi)
+    {
+        Ad = ad;
+        Kredi = kredi;
+        OgretimGorevlisi = ogretimGorevlisi;
+        KayitliOgrenciler = new List<Ogrenci>();
+    }
+
+    public void KayitOl(Ogrenci ogrenci)
+    {
+        KayitliOgrenciler.Add(ogrenci);
+    }
+
+    public void BilgileriGoster()
+    {
+        Console.WriteLine($"Ders: {Ad}, Kredi: {Kredi}, Öğretim Görevlisi: {OgretimGorevlisi.Ad} {OgretimGorevlisi.Soyad}");
+        Console.WriteLine("Kayıtlı Öğrenciler:");
+        foreach (var ogrenci in KayitliOgrenciler)
+        {
+            Console.WriteLine($"{ogrenci.Ad} {ogrenci.Soyad} - Öğrenci No: {ogrenci.OgrenciNo}");
+        }
+    }
+}
+
+// JSON/XML veri yönetimi sınıfı
+public class VeriYonetimi
+{
+    private string dosyaYolu = "veri.json";
+
+    // Öğrenci ekleme ve JSON'a yazma
+    public void OgrenciEkle(Ogrenci ogrenci)
+    {
+        var ogrenciler = DosyadanOku<List<Ogrenci>>();
+        ogrenciler.Add(ogrenci);
+        DosyayaYaz(ogrenciler);
+    }
+
+    // JSON dosyasından okuma
+    private List<Ogrenci> DosyadanOku<T>()
+    {
+        if (!File.Exists(dosyaYolu)) return new List<Ogrenci>();
+
+        string jsonVeri = File.ReadAllText(dosyaYolu);
+        return JsonConvert.DeserializeObject<List<Ogrenci>>(jsonVeri);
+    }
+
+    // JSON dosyasına yazma
+    private void DosyayaYaz(List<Ogrenci> ogrenciler)
+    {
+        string jsonVeri = JsonConvert.SerializeObject(ogrenciler, Formatting.Indented);
+        File.WriteAllText(dosyaYolu, jsonVeri);
+    }
+}
+
+// Main Program
+public class Program
+{
+    static void Main(string[] args)
+    {
+        // Öğretim Görevlisi Tanımla
+        OgretimGorevlisi ogretimGorevlisi = new OgretimGorevlisi("Ali", "Kaya", "123456789", "Prof. Dr.");
+        
+        // Ders Tanımla
+        Ders ders = new Ders("Yazılım Mühendisliği", 4, ogretimGorevlisi);
+        
+        // Öğrenci Tanımla
+        Ogrenci ogrenci = new Ogrenci("Ahmet", "Yılmaz", "987654321", 1001);
+        
+        // Öğrenci Kaydı
+        ders.KayitOl(ogrenci);
+        
+        // Ders Bilgisi Göster
+        ders.BilgileriGoster();
+        
+        // JSON'a yaz
+        VeriYonetimi veriYonetimi = new VeriYonetimi();
+        veriYonetimi.OgrenciEkle(ogrenci);
+        
+        // JSON'dan Okuma ve Öğrencileri Gösterme
+        var ogrenciler = veriYonetimi.DosyadanOku<List<Ogrenci>>();
+        Console.WriteLine("\nJSON'dan okunan Öğrenciler:");
+        foreach (var o in ogrenciler)
+        {
+            Console.WriteLine($"Öğrenci: {o.Ad} {o.Soyad}, No: {o.OgrenciNo}");
+        }
+    }
+}
